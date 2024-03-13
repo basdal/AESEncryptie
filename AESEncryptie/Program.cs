@@ -5,29 +5,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Collections.Generic;
-
-public class GebruikerContext : DbContext
-{
-    public DbSet<Gebruiker> Gebruikers { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        optionsBuilder.UseSqlServer("Data Source=(local);Initial Catalog=AESEncryptie;Integrated Security=true;TrustServerCertificate=true");
-    }
-}
-
-public class Gebruiker
-{
-    [Key]
-    public int Id { get; set; }
-    public string Voornaam { get; set; }
-    public string Achternaam { get; set; }
-    public string Straat { get; set; }
-    public int Huisnummer { get; set; }
-    public string Postcode { get; set; }
-    public string Woonplaats { get; set; }
-    public string Creditcardnummer { get; set; }
-}
+using Microsoft.Data.SqlClient;
 
 class Program
 {
@@ -62,24 +40,25 @@ class Program
         // Versleutel het creditcardnummer
         string encryptedCreditcardnummer = EncryptCreditCard(creditcardnummer, encryptionKey);
 
-        // Voeg gebruiker toe aan de database
-        using (var context = new GebruikerContext())
+
+        using(SqlConnection connection = new SqlConnection("Data Source=(local);Initial Catalog=AESEncryptie;Integrated Security=true;TrustServerCertificate=true"))
         {
-            var gebruiker = new Gebruiker
+            string query = "INSERT INTO dbo.Gebruikers (Voornaam,Achternaam,Straat,Huisnummer,Postcode,Woonplaats,Creditcardnummer) VALUES (@voornaam,@achternaam,@straat,@huisnummer,@postcode,@woonplaats,@creditcardnummer)";
+
+            using(SqlCommand command = new SqlCommand(query, connection))
             {
-                Voornaam = voornaam,
-                Achternaam = achternaam,
-                Straat = straat,
-                Huisnummer = huisnummer,
-                Postcode = postcode,
-                Woonplaats = woonplaats,
-                Creditcardnummer = encryptedCreditcardnummer
-            };
+                command.Parameters.AddWithValue("@voornaam", voornaam);
+                command.Parameters.AddWithValue("@achternaam", achternaam);
+                command.Parameters.AddWithValue("@straat", straat);
+                command.Parameters.AddWithValue("@huisnummer", huisnummer);
+                command.Parameters.AddWithValue("@postcode", postcode);
+                command.Parameters.AddWithValue("@woonplaats", woonplaats);
+                command.Parameters.AddWithValue("@creditcardnummer", encryptedCreditcardnummer);
 
-            context.Gebruikers.Add(gebruiker);
-            context.SaveChanges();
+                connection.Open();
+                command.ExecuteNonQuery();
+            }
         }
-
         Console.WriteLine("Gebruiker is toegevoegd aan de database.");
 
         Console.ReadLine();
